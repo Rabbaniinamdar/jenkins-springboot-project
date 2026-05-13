@@ -1,0 +1,7 @@
+com\crud\product\productcrud\Product.class
+com\crud\product\productcrud\UserNotFoundException.class
+com\crud\product\productcrud\GlobalExceptionHandler.class
+com\crud\product\productcrud\ProductController.class
+com\crud\product\productcrud\App.class
+com\crud\product\productcrud\ProductRepository.class
+com\crud\product\productcrud\ProductService.class
