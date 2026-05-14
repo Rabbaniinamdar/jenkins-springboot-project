@@ -17,19 +17,23 @@ pipeline {
         stage('Stop Old App') {
             steps {
                 bat '''
+                @echo off
+
                 netstat -aon | findstr :8088 > nul
 
-                IF %ERRORLEVEL%==0 (
-                    echo Killing existing Spring Boot app...
+                if %errorlevel%==0 (
+                    echo Killing existing Spring Boot application...
 
                     for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8088') do (
                         taskkill /F /PID %%a
                     )
 
                     timeout /t 5
-                ) ELSE (
+                ) else (
                     echo No application running on port 8088
                 )
+
+                exit /b 0
                 '''
             }
         }
@@ -37,7 +41,11 @@ pipeline {
         stage('Start New App') {
             steps {
                 bat '''
+                @echo off
+
                 wmic process call create "C:\\Program Files\\Java\\jdk-17\\bin\\java.exe -jar C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\springboot-pipeline\\target\\usercrud-0.0.1-SNAPSHOT.jar"
+
+                exit /b 0
                 '''
             }
         }
@@ -45,9 +53,13 @@ pipeline {
         stage('Verify Application') {
             steps {
                 bat '''
+                @echo off
+
                 timeout /t 10
 
                 netstat -aon | findstr :8088
+
+                exit /b 0
                 '''
             }
         }
