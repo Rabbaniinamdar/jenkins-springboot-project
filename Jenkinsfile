@@ -43,7 +43,11 @@ pipeline {
                 bat '''
                 @echo off
 
-                wmic process call create "C:\\Program Files\\Java\\jdk-17\\bin\\java.exe -jar C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\springboot-pipeline\\target\\usercrud-0.0.1-SNAPSHOT.jar"
+                cd /d C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\springboot-pipeline\\target
+
+                start /B "springboot-app" "C:\\Program Files\\Java\\jdk-17\\bin\\java.exe" -jar usercrud-0.0.1-SNAPSHOT.jar
+
+                timeout /t 10
 
                 exit /b 0
                 '''
@@ -55,7 +59,7 @@ pipeline {
                 bat '''
                 @echo off
 
-                timeout /t 10
+                echo Checking application on port 8088...
 
                 netstat -aon | findstr :8088
 
