@@ -8,11 +8,12 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 	
 	@Entity
+	
 	public class Product {
 	    @Id
 	    @GeneratedValue(strategy = GenerationType.IDENTITY)
 	    private Long id;
-	    @NotBlank(message = "Product Name is mandatory")
+	    @NotBlank(message = "Product Name is mandatory ")
 	    @Size(min = 4, message = "Product Name should have at least 8 characters")
 	    private String productName;
 	    private String productQuantity;
