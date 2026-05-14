@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     tools {
-        jdk 'jdk 17'
+        jdk 'jdk 21'
         maven 'maven'
     }
 
@@ -31,8 +31,7 @@ pipeline {
         stage('Start New App') {
             steps {
                 bat '''
-                cd target
-                start "" "C:\\Program Files\\Java\\jdk-17\\bin\\java.exe" -jar usercrud-0.0.1-SNAPSHOT.jar
+                wmic process call create "C:\\Program Files\\Java\\jdk-17\\bin\\java.exe -jar C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\springboot-pipeline\\target\\usercrud-0.0.1-SNAPSHOT.jar"
                 '''
             }
         }
