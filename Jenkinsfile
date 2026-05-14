@@ -42,13 +42,11 @@ pipeline {
             steps {
                 bat '''
                 @echo off
-
+        
                 cd /d C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\springboot-pipeline\\target
-
-                start /B "springboot-app" "C:\\Program Files\\Java\\jdk-17\\bin\\java.exe" -jar usercrud-0.0.1-SNAPSHOT.jar
-
-                timeout /t 10
-
+        
+                start "" "C:\\Program Files\\Java\\jdk-17\\bin\\java.exe" -jar usercrud-0.0.1-SNAPSHOT.jar
+        
                 exit /b 0
                 '''
             }
