@@ -13,19 +13,13 @@ pipeline {
                 bat '''
                 @echo off
 
-                netstat -aon | findstr :8088 > nul
+                echo ======================================
+                echo Stopping old Spring Boot application
+                echo ======================================
 
-                if %errorlevel%==0 (
-                    echo Killing existing Spring Boot application...
+                taskkill /F /IM java.exe /T >nul 2>&1
 
-                    for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8088') do (
-                        taskkill /F /PID %%a
-                    )
-
-                    timeout /t 5
-                ) else (
-                    echo No application running on port 8088
-                )
+                timeout /t 5
 
                 exit /b 0
                 '''
@@ -34,7 +28,17 @@ pipeline {
 
         stage('Build') {
             steps {
-                bat 'mvn clean package'
+                bat '''
+                @echo off
+
+                echo ======================================
+                echo Building Spring Boot Application
+                echo ======================================
+
+                mvn clean package
+
+                exit /b 0
+                '''
             }
         }
 
@@ -42,11 +46,17 @@ pipeline {
             steps {
                 bat '''
                 @echo off
-        
+
+                echo ======================================
+                echo Starting Spring Boot Application
+                echo ======================================
+
                 cd /d C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\springboot-pipeline\\target
-        
+
                 start "" "C:\\Program Files\\Java\\jdk-17\\bin\\java.exe" -jar usercrud-0.0.1-SNAPSHOT.jar
-        
+
+                timeout /t 10
+
                 exit /b 0
                 '''
             }
@@ -57,9 +67,11 @@ pipeline {
                 bat '''
                 @echo off
 
-                echo Checking application on port 8088...
+                echo ======================================
+                echo Verifying Application on Port 8088
+                echo ======================================
 
-                netstat -aon | findstr :8088
+                netstat -ano | findstr :8088
 
                 exit /b 0
                 '''
