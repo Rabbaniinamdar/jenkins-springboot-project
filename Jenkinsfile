@@ -8,12 +8,6 @@ pipeline {
 
     stages {
 
-        stage('Build') {
-            steps {
-                bat 'mvn clean package'
-            }
-        }
-
         stage('Stop Old App') {
             steps {
                 bat '''
@@ -35,6 +29,12 @@ pipeline {
 
                 exit /b 0
                 '''
+            }
+        }
+
+        stage('Build') {
+            steps {
+                bat 'mvn clean package'
             }
         }
 
