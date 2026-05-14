@@ -8,12 +8,6 @@ pipeline {
 
     stages {
 
-        stage('Clone') {
-            steps {
-                git 'https://github.com/Rabbaniinamdar/jenkins-springboot-project'
-            }
-        }
-
         stage('Build') {
             steps {
                 bat 'mvn clean package'
