@@ -8,7 +8,7 @@ pipeline {
 
     environment {
         APP_PORT = '8088'
-        JAVA_EXE = 'C:\\Program Files\\Java\\jdk-21\\bin\\java.exe'
+        JAVA_EXE = 'C:\\Program Files\\Java\\jdk-21.0.10\\bin\\java.exe'
     }
 
     stages {
