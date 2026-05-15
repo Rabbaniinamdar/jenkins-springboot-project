@@ -75,24 +75,26 @@ pipeline {
                 echo ======================================
                 echo Starting Spring Boot Application
                 echo ======================================
-
+        
                 if not exist %JAR_FILE% (
                     echo ERROR: JAR file not found
                     exit /b 1
                 )
-
+        
                 echo Starting JAR: %JAR_FILE%
-
-                start /B java -jar %JAR_FILE% > app.log 2>&1
-
+        
+                powershell -Command "Start-Process cmd -ArgumentList '/c java -jar %JAR_FILE% > app.log 2>&1'"
+        
                 echo Waiting for application to start...
                 timeout /t 60
-
+        
                 echo ======================================
                 echo Application Logs
                 echo ======================================
-
-                type app.log
+        
+                if exist app.log (
+                    type app.log
+                )
                 '''
             }
         }
