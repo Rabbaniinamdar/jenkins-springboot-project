@@ -2,14 +2,15 @@ pipeline {
     agent any
 
     tools {
-        jdk 'jdk17'
-        maven 'maven3'
+        jdk 'jdk 17'
+        maven 'maven'
     }
 
     environment {
         APP_NAME = "usercrud"
         JAR_FILE = "target/usercrud-0.0.1-SNAPSHOT.jar"
         APP_PORT = "8088"
+        JAVA_EXE  = 'C:\\Program Files\\Java\\jdk-21.0.10\\bin\\java.exe'
     }
 
     stages {
