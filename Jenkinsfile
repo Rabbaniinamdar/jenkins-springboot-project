@@ -81,24 +81,29 @@ pipeline {
                     echo ======================================
                     echo Starting Spring Boot Application
                     echo ======================================
-
+        
                     cd /d %WORKSPACE%\\target
-
-                    REM Find JAR dynamically so version changes don't break pipeline
+        
+                    REM Find JAR dynamically
                     for %%f in (*-SNAPSHOT.jar) do set JAR_FILE=%%f
-
+        
                     if not defined JAR_FILE (
                         echo ERROR: No JAR file found in target folder!
                         exit /b 1
                     )
-
+        
                     echo Found JAR: %JAR_FILE%
-
-                    REM Launch as fully detached background process using PowerShell
-                    powershell -Command "Start-Process -FilePath '%JAVA_EXE%' -ArgumentList '-jar', '%WORKSPACE%\\target\\%JAR_FILE%' -RedirectStandardOutput '%WORKSPACE%\\app.log' -RedirectStandardError '%WORKSPACE%\\app-error.log' -WindowStyle Hidden -PassThru"
-
-                    echo Process launched via PowerShell.
-                    echo Waiting for application to start...
+        
+                    REM Delete old scheduled task if exists
+                    schtasks /delete /tn "SpringBootApp" /f >nul 2>&1
+        
+                    REM Create a new scheduled task that runs as SYSTEM (independent of Jenkins)
+                    schtasks /create /f /tn "SpringBootApp" /tr "\"%JAVA_HOME%\\bin\\java.exe\" -jar \"%WORKSPACE%\\target\\%JAR_FILE%\" > \"%WORKSPACE%\\app.log\" 2>&1" /sc once /st 00:00 /ru SYSTEM
+        
+                    REM Run it immediately
+                    schtasks /run /tn "SpringBootApp"
+        
+                    echo Task launched. Waiting for Spring Boot to start...
                     ping -n 25 127.0.0.1 >nul
                     echo Done waiting.
                     exit /b 0
