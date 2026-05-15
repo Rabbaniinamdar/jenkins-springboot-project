@@ -2,14 +2,14 @@ pipeline {
     agent any
 
     tools {
-        jdk 'jdk17'       // Must match the name configured in Jenkins > Global Tool Config
+        jdk 'jdk 21'
         maven 'maven'
     }
 
     environment {
         APP_PORT = '8088'
         JAR_PATTERN = 'target\\*-SNAPSHOT.jar'   // wildcard — survives version bumps
-        JAVA_EXE = "C:\\Program Files\\Java\\jdk-17\\bin\\java.exe"
+        JAVA_EXE = "C:\\Program Files\\Java\\jdk-21.0.10\\bin\\java.exe"
     }
 
     stages {
