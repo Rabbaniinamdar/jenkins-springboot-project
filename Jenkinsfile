@@ -74,47 +74,58 @@ pipeline {
                     echo ======================================
         
                     cd /d %WORKSPACE%\\target
-        
                     for %%f in (*-SNAPSHOT.jar) do set JAR_FILE=%%f
         
                     if not defined JAR_FILE (
-                        echo ERROR: No JAR file found in target folder!
+                        echo ERROR: No JAR file found!
                         exit /b 1
                     )
         
-                    echo Launching: %JAR_FILE%
+                    echo Found JAR: %JAR_FILE%
         
-                    REM Launch fully detached, redirect logs to file
-                    start /B "" "%JAVA_EXE%" -jar "%JAR_FILE%" > "%WORKSPACE%\\app.log" 2>&1
+                    powershell -Command "Start-Process -FilePath '%JAVA_EXE%' -ArgumentList '-jar', '%WORKSPACE%\\target\\%JAR_FILE%' -RedirectStandardOutput '%WORKSPACE%\\app.log' -RedirectStandardError '%WORKSPACE%\\app-error.log' -WindowStyle Hidden -PassThru"
         
-                    echo App launched. Waiting for startup...
-                    ping -n 20 127.0.0.1 >nul
-        
-                    echo Startup wait complete.
+                    echo Process launched via PowerShell.
+                    ping -n 25 127.0.0.1 >nul
+                    echo Done waiting.
                     exit /b 0
                 '''
             }
         }
+        
         stage('Verify Application') {
             steps {
                 bat '''
                     @echo off
                     echo ======================================
-                    echo Verifying Application on Port %APP_PORT%
+                    echo App Log Output
                     echo ======================================
-
+        
+                    if exist "%WORKSPACE%\\app.log" (
+                        powershell -Command "Get-Content '%WORKSPACE%\\app.log' -Tail 30"
+                    ) else (
+                        echo WARNING: app.log not found
+                    )
+        
+                    if exist "%WORKSPACE%\\app-error.log" (
+                        echo --- Error Log ---
+                        powershell -Command "Get-Content '%WORKSPACE%\\app-error.log' -Tail 20"
+                    )
+        
+                    echo ======================================
+                    echo Verifying Port %APP_PORT%
+                    echo ======================================
                     netstat -aon | findstr :%APP_PORT%
                     if %errorlevel% NEQ 0 (
                         echo ERROR: Application is NOT running on port %APP_PORT%!
                         exit /b 1
                     )
-
+        
                     echo SUCCESS: Application is running on port %APP_PORT%
                     exit /b 0
                 '''
             }
         }
-    }
 
     post {
         success {
