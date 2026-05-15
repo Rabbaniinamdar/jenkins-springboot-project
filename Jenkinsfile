@@ -17,9 +17,19 @@ pipeline {
                 echo Stopping old Spring Boot application
                 echo ======================================
 
-                taskkill /F /IM java.exe /T >nul 2>&1
+                netstat -aon | findstr :8088 >nul
 
-                timeout /t 5
+                if %errorlevel%==0 (
+                    echo Application found on port 8088. Stopping...
+
+                    for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8088') do (
+                        taskkill /F /PID %%a
+                    )
+
+                    timeout /t 5
+                ) else (
+                    echo No application running on port 8088
+                )
 
                 exit /b 0
                 '''
@@ -71,7 +81,7 @@ pipeline {
                 echo Verifying Application on Port 8088
                 echo ======================================
 
-                netstat -ano | findstr :8088
+                netstat -aon | findstr :8088
 
                 exit /b 0
                 '''
