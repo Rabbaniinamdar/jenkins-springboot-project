@@ -72,25 +72,29 @@ pipeline {
                     echo ======================================
                     echo Starting Spring Boot Application
                     echo ======================================
-
+        
                     cd /d %WORKSPACE%\\target
-
+        
                     for %%f in (*-SNAPSHOT.jar) do set JAR_FILE=%%f
-
+        
                     if not defined JAR_FILE (
                         echo ERROR: No JAR file found in target folder!
                         exit /b 1
                     )
-
+        
                     echo Launching: %JAR_FILE%
-                    start "" "%JAVA_EXE%" -jar "%JAR_FILE%"
-
-                    ping -n 16 127.0.0.1 >nul
+        
+                    REM Launch fully detached, redirect logs to file
+                    start /B "" "%JAVA_EXE%" -jar "%JAR_FILE%" > "%WORKSPACE%\\app.log" 2>&1
+        
+                    echo App launched. Waiting for startup...
+                    ping -n 20 127.0.0.1 >nul
+        
+                    echo Startup wait complete.
                     exit /b 0
                 '''
             }
         }
-
         stage('Verify Application') {
             steps {
                 bat '''
