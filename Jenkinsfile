@@ -2,156 +2,150 @@ pipeline {
     agent any
 
     tools {
-        jdk 'jdk 21'
-        maven 'maven'
+        jdk 'jdk17'
+        maven 'maven3'
     }
 
     environment {
-        APP_PORT = '8088'
-        JAVA_EXE = 'C:\\Program Files\\Java\\jdk-21.0.10\\bin\\java.exe'
-
+        APP_NAME = "usercrud"
+        JAR_FILE = "target/usercrud-0.0.1-SNAPSHOT.jar"
+        APP_PORT = "8088"
     }
 
     stages {
 
-        // ─────────────────────────────────────────────
-        // STAGE 1 — Stop Old App
-        // ─────────────────────────────────────────────
-        stage('Stop Old App') {
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main',
+                url: 'https://github.com/Rabbaniinamdar/jenkins-springboot-project'
+            }
+        }
+
+        stage('Stop Old Application') {
             steps {
                 bat '''
-                    @echo off
-                    echo ======================================
-                    echo Stopping old Spring Boot application
-                    echo ======================================
+                echo ======================================
+                echo Stopping Old Spring Boot Application
+                echo ======================================
 
-                    REM Stop scheduled task if running
-                    schtasks /end /tn "SpringBootApp" >nul 2>&1
+                for /f "tokens=5" %%a in ('netstat -ano ^| findstr :%APP_PORT%') do (
+                    echo Killing process running on port %APP_PORT%
+                    taskkill /F /PID %%a
+                )
 
-                    REM Kill by JAR name using wmic
-                    wmic process where "commandline like '%%usercrud%%'" get processid 2>nul | findstr /r "[0-9]" >nul
-                    if %errorlevel%==0 (
-                        echo Found running usercrud process. Killing...
-                        wmic process where "commandline like '%%usercrud%%'" delete
-                        echo Waiting for file handles to release...
-                        ping -n 12 127.0.0.1 >nul
-                    ) else (
-                        echo No usercrud process found.
-                    )
-
-                    REM Also kill by port as backup
-                    for /f "tokens=5" %%a in ('netstat -aon ^| findstr :%APP_PORT% 2^>nul') do (
-                        taskkill /F /PID %%a >nul 2>&1
-                    )
-
-                    ping -n 6 127.0.0.1 >nul
-                    echo Done stopping. Proceeding to build...
-                    exit /b 0
+                echo Old application stopped.
                 '''
             }
         }
 
-        // ─────────────────────────────────────────────
-        // STAGE 2 — Build
-        // ─────────────────────────────────────────────
-        stage('Build') {
+        stage('Clean Workspace') {
             steps {
                 bat '''
-                    @echo off
-                    echo ======================================
-                    echo Building Spring Boot Application
-                    echo ======================================
+                echo ======================================
+                echo Cleaning Old Build Files
+                echo ======================================
 
-                    REM Force delete target folder to avoid file lock issues
-                    if exist "%WORKSPACE%\\target" (
-                        echo Deleting target folder...
-                        rd /s /q "%WORKSPACE%\\target"
-                        ping -n 4 127.0.0.1 >nul
-                    )
+                if exist target (
+                    rmdir /s /q target
+                )
 
-                    mvn package -DskipTests
+                if exist app.log (
+                    del app.log
+                )
                 '''
             }
         }
 
-        // ─────────────────────────────────────────────
-        // STAGE 3 — Start New App
-        // ─────────────────────────────────────────────
-        stage('Start New App') {
+        stage('Build Application') {
             steps {
                 bat '''
-                    @echo off
-                    echo ======================================
-                    echo Starting Spring Boot Application
-                    echo ======================================
+                echo ======================================
+                echo Building Spring Boot Application
+                echo ======================================
 
-                    cd /d %WORKSPACE%\\target
-
-                    REM Find JAR dynamically
-                    for %%f in (*-SNAPSHOT.jar) do set JAR_FILE=%%f
-
-                    if not defined JAR_FILE (
-                        echo ERROR: No JAR file found in target folder!
-                        exit /b 1
-                    )
-
-                    echo Found JAR: %JAR_FILE%
-                    echo JAVA_HOME: %JAVA_HOME%
-
-                    REM Use PowerShell Register-ScheduledTask — handles spaces in paths correctly
-                    powershell -ExecutionPolicy Bypass -Command ^
-                        "$javaExe = '%JAVA_HOME%\\bin\\java.exe';" ^
-                        "$jarPath = '%WORKSPACE%\\target\\%JAR_FILE%';" ^
-                        "Unregister-ScheduledTask -TaskName 'SpringBootApp' -Confirm:$false -ErrorAction SilentlyContinue;" ^
-                        "$action = New-ScheduledTaskAction -Execute $javaExe -Argument \"-jar '$jarPath'\";" ^
-                        "$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(5);" ^
-                        "$settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Hours 24);" ^
-                        "$principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -RunLevel Highest;" ^
-                        "Register-ScheduledTask -TaskName 'SpringBootApp' -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force;" ^
-                        "Start-ScheduledTask -TaskName 'SpringBootApp';" ^
-                        "Write-Host 'Scheduled task created and started.'"
-
-                    echo Waiting for Spring Boot to initialize...
-                    ping -n 30 127.0.0.1 >nul
-                    echo Done waiting.
-                    exit /b 0
+                mvn clean install -DskipTests
                 '''
             }
         }
 
-        // ─────────────────────────────────────────────
-        // STAGE 4 — Verify Application
-        // ─────────────────────────────────────────────
+        stage('Start Application') {
+            steps {
+                bat '''
+                echo ======================================
+                echo Starting Spring Boot Application
+                echo ======================================
+
+                if not exist %JAR_FILE% (
+                    echo ERROR: JAR file not found
+                    exit /b 1
+                )
+
+                echo Starting JAR: %JAR_FILE%
+
+                start /B java -jar %JAR_FILE% > app.log 2>&1
+
+                echo Waiting for application to start...
+                timeout /t 60
+
+                echo ======================================
+                echo Application Logs
+                echo ======================================
+
+                type app.log
+                '''
+            }
+        }
+
         stage('Verify Application') {
             steps {
                 bat '''
-                    @echo off
-                    echo ======================================
-                    echo Verifying Application on Port %APP_PORT%
-                    echo ======================================
+                echo ======================================
+                echo Verifying Application on Port %APP_PORT%
+                echo ======================================
 
-                    netstat -aon | findstr :%APP_PORT%
-                    if %errorlevel% NEQ 0 (
-                        echo ERROR: Application is NOT running on port %APP_PORT%
-                        exit /b 1
-                    )
+                netstat -ano | findstr :%APP_PORT%
 
-                    echo SUCCESS: Application is running on port %APP_PORT%
-                    exit /b 0
+                if %ERRORLEVEL% NEQ 0 (
+                    echo.
+                    echo ERROR: Application failed to start
+                    echo.
+                    echo ======================================
+                    echo Printing Application Logs
+                    echo ======================================
+                    type app.log
+                    exit /b 1
+                )
+
+                echo.
+                echo SUCCESS: Application is running on port %APP_PORT%
                 '''
             }
         }
     }
 
-    // ─────────────────────────────────────────────
-    // POST ACTIONS
-    // ─────────────────────────────────────────────
     post {
+
         success {
-            echo 'SUCCESS: Spring Boot application deployed and running!'
+            echo '======================================'
+            echo 'APPLICATION DEPLOYED SUCCESSFULLY'
+            echo '======================================'
         }
+
         failure {
-            echo 'FAILURE: Deployment failed! Check console output above.'
+            echo '======================================'
+            echo 'DEPLOYMENT FAILED'
+            echo '======================================'
+
+            bat '''
+            echo ===== FINAL APPLICATION LOG =====
+            if exist app.log (
+                type app.log
+            )
+            '''
+        }
+
+        always {
+            echo 'Pipeline execution completed.'
         }
     }
 }
