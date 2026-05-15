@@ -8,8 +8,7 @@ pipeline {
 
     environment {
         APP_PORT = '8088'
-        JAR_PATTERN = 'target\\*-SNAPSHOT.jar'   // wildcard — survives version bumps
-        JAVA_EXE = "C:\\Program Files\\Java\\jdk-21.0.10\\bin\\java.exe"
+        JAVA_EXE = 'C:\\Program Files\\Java\\jdk-21\\bin\\java.exe'
     }
 
     stages {
@@ -22,19 +21,24 @@ pipeline {
                     echo Stopping old Spring Boot application
                     echo ======================================
 
-                    netstat -aon | findstr :%APP_PORT% >nul 2>&1
-                    if %errorlevel% NEQ 0 (
-                        echo No application running on port %APP_PORT%
-                        exit /b 0
+                    REM Kill any java process running the usercrud jar
+                    wmic process where "commandline like '%%usercrud%%'" get processid 2>nul | findstr /r "[0-9]" >nul
+                    if %errorlevel%==0 (
+                        echo Found running usercrud process. Killing...
+                        wmic process where "commandline like '%%usercrud%%'" delete
+                        echo Waiting for file handles to release...
+                        timeout /t 8 /nobreak >nul
+                    ) else (
+                        echo No usercrud process found.
                     )
 
-                    echo Application found on port %APP_PORT%. Stopping...
-                    for /f "tokens=5" %%a in ('netstat -aon ^| findstr :%APP_PORT%') do (
-                        echo Killing PID %%a
+                    REM Also kill by port as a backup
+                    for /f "tokens=5" %%a in ('netstat -aon ^| findstr :%APP_PORT% 2^>nul') do (
                         taskkill /F /PID %%a >nul 2>&1
                     )
+
                     timeout /t 5 /nobreak >nul
-                    echo Old application stopped.
+                    echo Done. Proceeding to build...
                     exit /b 0
                 '''
             }
@@ -49,7 +53,6 @@ pipeline {
                     echo ======================================
                     mvn clean package -DskipTests
                 '''
-                // Do NOT add "exit /b 0" here — let Maven's exit code control success/failure
             }
         }
 
@@ -63,7 +66,6 @@ pipeline {
 
                     cd /d %WORKSPACE%\\target
 
-                    :: Find the JAR dynamically
                     for %%f in (*-SNAPSHOT.jar) do set JAR_FILE=%%f
 
                     if not defined JAR_FILE (
@@ -74,7 +76,6 @@ pipeline {
                     echo Launching: %JAR_FILE%
                     start "" "%JAVA_EXE%" -jar "%JAR_FILE%"
 
-                    echo Waiting for app to start...
                     timeout /t 15 /nobreak >nul
                     exit /b 0
                 '''
