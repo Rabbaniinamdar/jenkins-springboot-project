@@ -21,23 +21,23 @@ pipeline {
                     echo Stopping old Spring Boot application
                     echo ======================================
 
-                    REM Kill any java process running the usercrud jar
+                    REM Kill by jar name using wmic
                     wmic process where "commandline like '%%usercrud%%'" get processid 2>nul | findstr /r "[0-9]" >nul
                     if %errorlevel%==0 (
                         echo Found running usercrud process. Killing...
                         wmic process where "commandline like '%%usercrud%%'" delete
                         echo Waiting for file handles to release...
-                        timeout /t 8 /nobreak >nul
+                        ping -n 12 127.0.0.1 >nul
                     ) else (
                         echo No usercrud process found.
                     )
 
-                    REM Also kill by port as a backup
+                    REM Also kill by port as backup
                     for /f "tokens=5" %%a in ('netstat -aon ^| findstr :%APP_PORT% 2^>nul') do (
                         taskkill /F /PID %%a >nul 2>&1
                     )
 
-                    timeout /t 5 /nobreak >nul
+                    ping -n 6 127.0.0.1 >nul
                     echo Done. Proceeding to build...
                     exit /b 0
                 '''
@@ -51,7 +51,16 @@ pipeline {
                     echo ======================================
                     echo Building Spring Boot Application
                     echo ======================================
-                    mvn clean package -DskipTests
+
+                    REM Force delete target folder to avoid file lock issues
+                    if exist "%WORKSPACE%\\target" (
+                        echo Force deleting target folder...
+                        rd /s /q "%WORKSPACE%\\target"
+                        ping -n 4 127.0.0.1 >nul
+                    )
+
+                    REM Use package instead of clean package since we deleted manually
+                    mvn package -DskipTests
                 '''
             }
         }
@@ -76,7 +85,7 @@ pipeline {
                     echo Launching: %JAR_FILE%
                     start "" "%JAVA_EXE%" -jar "%JAR_FILE%"
 
-                    timeout /t 15 /nobreak >nul
+                    ping -n 16 127.0.0.1 >nul
                     exit /b 0
                 '''
             }
