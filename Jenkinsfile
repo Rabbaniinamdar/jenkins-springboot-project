@@ -124,7 +124,7 @@ pipeline {
                     )
 
                     if exist "%WORKSPACE%\\app-error.log" (
-                        echo --- Error Log (last 20 lines) ---
+                        echo App Error Log last 20 lines
                         powershell -Command "Get-Content '%WORKSPACE%\\app-error.log' -Tail 20"
                     )
 
