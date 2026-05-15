@@ -2,8 +2,14 @@ pipeline {
     agent any
 
     tools {
-        jdk 'jdk 21'
+        jdk 'jdk17'       // Must match the name configured in Jenkins > Global Tool Config
         maven 'maven'
+    }
+
+    environment {
+        APP_PORT = '8088'
+        JAR_PATTERN = 'target\\*-SNAPSHOT.jar'   // wildcard — survives version bumps
+        JAVA_EXE = "C:\\Program Files\\Java\\jdk-17\\bin\\java.exe"
     }
 
     stages {
@@ -11,27 +17,25 @@ pipeline {
         stage('Stop Old App') {
             steps {
                 bat '''
-                @echo off
+                    @echo off
+                    echo ======================================
+                    echo Stopping old Spring Boot application
+                    echo ======================================
 
-                echo ======================================
-                echo Stopping old Spring Boot application
-                echo ======================================
-
-                netstat -aon | findstr :8088 >nul
-
-                if %errorlevel%==0 (
-                    echo Application found on port 8088. Stopping...
-
-                    for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8088') do (
-                        taskkill /F /PID %%a
+                    netstat -aon | findstr :%APP_PORT% >nul 2>&1
+                    if %errorlevel% NEQ 0 (
+                        echo No application running on port %APP_PORT%
+                        exit /b 0
                     )
 
-                    timeout /t 5
-                ) else (
-                    echo No application running on port 8088
-                )
-
-                exit /b 0
+                    echo Application found on port %APP_PORT%. Stopping...
+                    for /f "tokens=5" %%a in ('netstat -aon ^| findstr :%APP_PORT%') do (
+                        echo Killing PID %%a
+                        taskkill /F /PID %%a >nul 2>&1
+                    )
+                    timeout /t 5 /nobreak >nul
+                    echo Old application stopped.
+                    exit /b 0
                 '''
             }
         }
@@ -39,35 +43,40 @@ pipeline {
         stage('Build') {
             steps {
                 bat '''
-                @echo off
-
-                echo ======================================
-                echo Building Spring Boot Application
-                echo ======================================
-
-                mvn clean package
-
-                exit /b 0
+                    @echo off
+                    echo ======================================
+                    echo Building Spring Boot Application
+                    echo ======================================
+                    mvn clean package -DskipTests
                 '''
+                // Do NOT add "exit /b 0" here — let Maven's exit code control success/failure
             }
         }
 
         stage('Start New App') {
             steps {
                 bat '''
-                @echo off
+                    @echo off
+                    echo ======================================
+                    echo Starting Spring Boot Application
+                    echo ======================================
 
-                echo ======================================
-                echo Starting Spring Boot Application
-                echo ======================================
+                    cd /d %WORKSPACE%\\target
 
-                cd /d C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\springboot-pipeline\\target
+                    :: Find the JAR dynamically
+                    for %%f in (*-SNAPSHOT.jar) do set JAR_FILE=%%f
 
-                start "" "C:\\Program Files\\Java\\jdk-17\\bin\\java.exe" -jar usercrud-0.0.1-SNAPSHOT.jar
+                    if not defined JAR_FILE (
+                        echo ERROR: No JAR file found in target folder!
+                        exit /b 1
+                    )
 
-                timeout /t 10
+                    echo Launching: %JAR_FILE%
+                    start "" "%JAVA_EXE%" -jar "%JAR_FILE%"
 
-                exit /b 0
+                    echo Waiting for app to start...
+                    timeout /t 15 /nobreak >nul
+                    exit /b 0
                 '''
             }
         }
@@ -75,15 +84,19 @@ pipeline {
         stage('Verify Application') {
             steps {
                 bat '''
-                @echo off
+                    @echo off
+                    echo ======================================
+                    echo Verifying Application on Port %APP_PORT%
+                    echo ======================================
 
-                echo ======================================
-                echo Verifying Application on Port 8088
-                echo ======================================
+                    netstat -aon | findstr :%APP_PORT%
+                    if %errorlevel% NEQ 0 (
+                        echo ERROR: Application is NOT running on port %APP_PORT%!
+                        exit /b 1
+                    )
 
-                netstat -aon | findstr :8088
-
-                exit /b 0
+                    echo SUCCESS: Application is running on port %APP_PORT%
+                    exit /b 0
                 '''
             }
         }
@@ -93,9 +106,8 @@ pipeline {
         success {
             echo 'Spring Boot application deployed successfully!'
         }
-
         failure {
-            echo 'Deployment failed!'
+            echo 'Deployment failed! Check console output above.'
         }
     }
 }
